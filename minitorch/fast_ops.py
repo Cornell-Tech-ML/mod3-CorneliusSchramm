@@ -2,16 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar, Any
 
+from numba import njit as _njit, prange
 import numpy as np
-from numba import prange
-from numba import njit as _njit
 
 from .tensor_data import (
-    MAX_DIMS,
     broadcast_index,
     index_to_position,
     shape_broadcast,
     to_index,
+    MAX_DIMS,
 )
 from .tensor_ops import MapProto, TensorOps
 
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from typing import Callable, Optional
 
     from .tensor import Tensor
-    from .tensor_data import Index, Shape, Storage, Strides
+    from .tensor_data import Shape, Storage, Strides, Index
 
 # TIP: Use `NUMBA_DISABLE_JIT=1 pytest tests/ -m task3_1` to run these tests without JIT.
 
@@ -169,9 +168,27 @@ def tensor_map(
         in_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        # ASSIGN2.2:
+        if (
+            len(out_strides) != len(in_strides)
+            or (out_strides != in_strides).any()
+            or (out_shape != in_shape).any()
+        ):
+            for i in prange(len(out)):
+                out_index: Index = np.zeros(MAX_DIMS, np.int16)  # type: ignore
+                in_index: Index = np.zeros(MAX_DIMS, np.int16)  # type: ignore
+                to_index(i, out_shape, out_index)
+                broadcast_index(out_index, out_shape, in_shape, in_index)
+                o = index_to_position(out_index, out_strides)
+                j = index_to_position(in_index, in_strides)
+                out[o] = fn(in_storage[j])
+        else:
+            # When `out` and `in` are stride-aligned, avoid indexing
+            for i in prange(len(out)):
+                out[i] = fn(in_storage[i])
+        # END ASSIGN2.2
 
-    return njit(_map, parallel=True)  # type: ignore
+    return njit(_map, parallel=True)  # type: ignorep
 
 
 def tensor_zip(
@@ -208,8 +225,29 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        if (
+            len(out_strides) != len(a_strides)
+            or len(out_strides) != len(b_strides)
+            or (out_strides != a_strides).any()
+            or (out_strides != b_strides).any()
+            or (out_shape != a_shape).any()
+            or (out_shape != b_shape).any()
+        ):
+            for i in prange(len(out)):
+                out_index: Index = np.zeros(MAX_DIMS, np.int32)
+                a_index: Index = np.zeros(MAX_DIMS, np.int32)
+                b_index: Index = np.zeros(MAX_DIMS, np.int32)
+                to_index(i, out_shape, out_index)
+                o = index_to_position(out_index, out_strides)
+                broadcast_index(out_index, out_shape, a_shape, a_index)
+                j = index_to_position(a_index, a_strides)
+                broadcast_index(out_index, out_shape, b_shape, b_index)
+                k = index_to_position(b_index, b_strides)
+                out[o] = fn(a_storage[j], b_storage[k])
+        else:
+            # When out, a, b are stride-aligned, avoid indexing
+            for i in prange(len(out)):
+                out[i] = fn(a_storage[i], b_storage[i])
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -244,8 +282,21 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        for i in prange(len(out)):
+            out_index = np.empty(MAX_DIMS, np.int32)
+            size = a_shape[reduce_dim]  # the reduce size
+            # get the index of i
+            to_index(i, out_shape, out_index)
+            # get the position
+            o = index_to_position(out_index, out_strides)
+            j = index_to_position(out_index, a_strides)
+            # the accumulation
+            a = out[o]
+            step = a_strides[reduce_dim]
+            for s in range(size):
+                a = fn(a, a_storage[j])
+                j += step
+            out[o] = a
 
     return njit(_reduce, parallel=True)  # type: ignore
 

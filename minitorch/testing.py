@@ -2,6 +2,8 @@
 
 from typing import Callable, Generic, Iterable, Tuple, TypeVar
 
+from numba import njit
+
 import minitorch.operators as operators
 
 A = TypeVar("A")
@@ -160,6 +162,7 @@ class MathTest(Generic[A]):
 
 
 class MathTestVariable(MathTest):
+
     @staticmethod
     def inv(a):
         return 1.0 / (a + 3.5)

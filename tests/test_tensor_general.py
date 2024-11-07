@@ -110,7 +110,11 @@ def test_two_grad(
 ) -> None:
     """Run backward for all two arg functions above."""
     t1, t2 = data.draw(shaped_tensors(2, backend=shared[backend]))
+    
     name, _, tensor_fn = fn
+    # print(name)
+    # if name == "div2":
+    #     import pdb; pdb.set_trace()
     grad_check(tensor_fn, t1, t2)
 
 

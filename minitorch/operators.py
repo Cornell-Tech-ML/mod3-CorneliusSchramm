@@ -2,6 +2,7 @@
 
 import math
 from typing import Callable, Iterable, List
+
 # ## Task 0.1
 
 #
@@ -234,21 +235,27 @@ def exp(x: float) -> float:
     """
     return float(math.exp(x))
 
+# def inv(x: float) -> float:
+#     """Returns the inverse of a number.
 
+#     Args:
+#     ----
+#         x: The number to return the inverse of.
+
+#     Returns:
+#     -------
+#         float: The inverse of x.
+
+#     """
+#     return 1.0 / x if x != 0.0 else 0.0
 def inv(x: float) -> float:
-    """Returns the inverse of a number.
-
-    Args:
-    ----
-        x: The number to return the inverse of.
-
-    Returns:
-    -------
-        float: The inverse of x.
-
-    """
+    """$f(x) = 1/x$"""
     return 1.0 / x
 
+
+def inv_back(x: float, d: float) -> float:
+    r"""If $f(x) = 1/x$ compute $d \times f'(x)$"""
+    return (-d) / (x**2)
 
 def log_back(x: float, d: float) -> float:
     """Computes the derivative of the natural logarithm function multiplied by a scalar.
@@ -269,23 +276,23 @@ def log_back(x: float, d: float) -> float:
     return d / x
 
 
-def inv_back(x: float, d: float) -> float:
-    """Computes the derivative of the inverse function (1/x) multiplied by a scalar.
+# def inv_back(x: float, d: float) -> float:
+#     """Computes the derivative of the inverse function (1/x) multiplied by a scalar.
 
-    This function implements the chain rule for the derivative of 1/x,
-    which is -1/x^2, and multiplies it by a scalar d.
+#     This function implements the chain rule for the derivative of 1/x,
+#     which is -1/x^2, and multiplies it by a scalar d.
 
-    Args:
-    ----
-        x: The input value for which to compute the derivative of 1/x.
-        d: A scalar value to multiply with the derivative.
+#     Args:
+#     ----
+#         x: The input value for which to compute the derivative of 1/x.
+#         d: A scalar value to multiply with the derivative.
 
-    Returns:
-    -------
-        float: The result of (-1/x^2) * d, which is the derivative of 1/x times d.
+#     Returns:
+#     -------
+#         float: The result of (-1/x^2) * d, which is the derivative of 1/x times d.
 
-    """
-    return -(inv(x) ** 2) * d
+#     """
+#     return -(inv(x) ** 2) * d
 
 
 def relu_back(x: float, d: float) -> float:

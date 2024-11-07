@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, TypeVar, Any
 
 from numba import njit as _njit, prange
 import numpy as np
+from .operators import inv, inv_back
 
 from .tensor_data import (
     broadcast_index,
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
     from .tensor import Tensor
     from .tensor_data import Shape, Storage, Strides, Index
 
+
 # TIP: Use `NUMBA_DISABLE_JIT=1 pytest tests/ -m task3_1` to run these tests without JIT.
 
 # This code will JIT compile fast versions your tensor_data functions.
@@ -31,6 +33,8 @@ Fn = TypeVar("Fn")
 def njit(fn: Fn, **kwargs: Any) -> Fn:
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
+# inv = njit(inv)
+# inv_back  = njit(inv_back)
 
 to_index = njit(to_index)
 index_to_position = njit(index_to_position)

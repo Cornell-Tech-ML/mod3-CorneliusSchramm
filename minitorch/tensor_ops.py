@@ -69,7 +69,7 @@ class TensorBackend:
         self.log_map = ops.map(operators.log)
         self.exp_map = ops.map(operators.exp)
         self.id_map = ops.map(operators.id)
-
+        self.inv_map = ops.map(operators.inv)
 
         # Zips
         self.add_zip = ops.zip(operators.add)
@@ -212,7 +212,6 @@ class SimpleOps(TensorOps):
         def ret(a: "Tensor", dim: int) -> "Tensor":
             out_shape = list(a.shape)
             out_shape[dim] = 1
-        self.inv_map = ops.map(operators.inv)
             # Other values when not sum.
             out = a.zeros(tuple(out_shape))
             out._tensor._storage[:] = start

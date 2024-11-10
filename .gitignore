@@ -130,3 +130,7 @@ dmypy.json
 *.\#*
 data/
 pyodide
+
+# Ignore current task file
+current_task.md
+.vscode/settings.json

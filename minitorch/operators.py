@@ -235,6 +235,7 @@ def exp(x: float) -> float:
     """
     return float(math.exp(x))
 
+
 # def inv(x: float) -> float:
 #     """Returns the inverse of a number.
 
@@ -246,6 +247,7 @@ def exp(x: float) -> float:
 #     -------
 #         float: The inverse of x.
 
+
 #     """
 #     return 1.0 / x if x != 0.0 else 0.0
 def inv(x: float) -> float:
@@ -256,6 +258,7 @@ def inv(x: float) -> float:
 def inv_back(x: float, d: float) -> float:
     r"""If $f(x) = 1/x$ compute $d \times f'(x)$"""
     return (-d) / (x**2)
+
 
 def log_back(x: float, d: float) -> float:
     """Computes the derivative of the natural logarithm function multiplied by a scalar.

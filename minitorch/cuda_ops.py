@@ -278,12 +278,26 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     """
     BLOCK_DIM = 32
 
-    cache = cuda.shared.array(BLOCK_DIM, numba.float64)  # noqa: F841
-    i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x  # noqa: F841
-    pos = cuda.threadIdx.x  # noqa: F841
+    cache = cuda.shared.array(BLOCK_DIM, numba.float64)
+    i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
+    pos = cuda.threadIdx.x
 
-    # TODO: Implement for Task 3.3.
-    raise NotImplementedError("Need to implement for Task 3.3")
+    # handle edge cases when input size isn't perfectly divisible by BLOCK_DIM:
+    if i < size:
+        cache[pos] = a[i]
+    else:
+        cache[pos] = 0
+    cuda.syncthreads()
+    # Now reduce with stride pattern
+    stride = BLOCK_DIM // 2
+    while stride > 0:
+        if pos < stride:
+            cache[pos] += cache[pos + stride]
+        cuda.syncthreads()
+        stride //= 2
+    # write cache[0] to global memory
+    if pos == 0:
+        out[cuda.blockIdx.x] = cache[0]
 
 
 jit_sum_practice = cuda.jit()(_sum_practice)
@@ -332,10 +346,32 @@ def tensor_reduce(
         cache = cuda.shared.array(BLOCK_DIM, numba.float64)  # noqa: F841
         out_index = cuda.local.array(MAX_DIMS, numba.int32)  # noqa: F841
         out_pos = cuda.blockIdx.x  # noqa: F841
-        pos = cuda.threadIdx.x  # noqa: F841
+        pos = cuda.threadIdx.x  # noqa: F841k
+        # i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
+        size = a_shape[reduce_dim]
 
-        # TODO: Implement for Task 3.3.
-        raise NotImplementedError("Need to implement for Task 3.3")
+        # 1. Figure out which output position this block is handling
+        to_index(out_pos, out_shape, out_index)
+
+        # 2. Load the correct slice into shared memory
+        out_index[reduce_dim] = pos  # Only vary along reduce_dim
+        if pos < size:
+            j = index_to_position(out_index, out_strides)
+            cache[pos] = a_storage[j]
+        else:
+            cache[pos] = reduce_value
+        cuda.syncthreads()
+
+        # Then: Parallel reduction within shared memory
+        stride = BLOCK_DIM // 2
+        while stride > 0:
+            if pos < stride:
+                cache[pos] = fn(cache[pos], cache[pos + stride])
+            cuda.syncthreads()
+            stride //= 2
+        # write cache[0] to global memory
+        if pos == 0:
+            out[out_pos] = cache[0]
 
     return jit(_reduce)  # type: ignore
 

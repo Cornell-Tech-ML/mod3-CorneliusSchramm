@@ -408,8 +408,43 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
 
     """
     BLOCK_DIM = 32  # noqa: F841
-    # TODO: Implement for Task 3.3.
-    raise NotImplementedError("Need to implement for Task 3.3")
+    # Details regarding this thread
+    block_y = cuda.blockIdx.y  # Row
+    block_x = cuda.blockIdx.x  # Column
+
+    # Details regarding this thread
+    thread_y = cuda.threadIdx.y  # Row
+    thread_x = cuda.threadIdx.x  # Column
+
+    # Working on Out[out_y, out_x]
+    out_y = block_y * BLOCK_DIM + thread_y
+    out_x = block_x * BLOCK_DIM + thread_x
+
+    # Shared memory for A and B
+    a_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
+    b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
+
+    # Load tiles into shared memory
+    # for A:
+    #   row_index is gloabl out_y,
+    #   col_index is tile_number * BLOCK_DIM + thread_x
+    # for B:
+    #   row_index is tile number * BLOCK_DIM + thread_y
+    #   col_index is global out_x
+    value = 0.0
+    for tile in range(size // BLOCK_DIM):
+        # row major layout -> in linear form ordinal is (matrix width  * global_row_index) + col_index
+        a_shared[thread_y, thread_x] = a[out_y * size + tile * BLOCK_DIM + thread_x]
+        b_shared[thread_y, thread_x] = b[tile * BLOCK_DIM + thread_y + out_x]
+        # Synchronize threads
+        cuda.syncthreads()
+        # Compute partial sum dot product A rows * B cols
+        for k in range(BLOCK_DIM):
+            value += a_shared[thread_y, k] * b_shared[k, thread_x]
+            # Synchronize threads
+        cuda.syncthreads()
+    # Write to global memory
+    out[out_y * size + out_x] = value
 
 
 jit_mm_practice = jit(_mm_practice)

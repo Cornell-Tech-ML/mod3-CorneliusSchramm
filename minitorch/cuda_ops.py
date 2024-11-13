@@ -356,7 +356,7 @@ def tensor_reduce(
         # 2. Load the correct slice into shared memory
         out_index[reduce_dim] = pos  # Only vary along reduce_dim
         if pos < size:
-            j = index_to_position(out_index, out_strides)
+            j = index_to_position(out_index, a_strides)
             cache[pos] = a_storage[j]
         else:
             cache[pos] = reduce_value

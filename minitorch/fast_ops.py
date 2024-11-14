@@ -351,32 +351,56 @@ def _tensor_matrix_multiply(
     """
     a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
+    total_elements = out_shape[0] * out_shape[1] * out_shape[2]
+
+    for idx in prange(total_elements):  # Parallel over all output elements
+        # Calculate batch, row, and column indices
+        batch = idx // (out_shape[1] * out_shape[2])
+        idx_in_batch = idx % (out_shape[1] * out_shape[2])
+        row = idx_in_batch // out_shape[2]
+        col = idx_in_batch % out_shape[2]
+
+        # Calculate starting positions using precomputed batch strides
+        a_pos = batch * a_batch_stride + row * a_strides[1]
+        b_pos = batch * b_batch_stride + col * b_strides[2]
+
+        # Compute the dot product
+        result = 0.0
+        for k in range(a_shape[2]):  # Shared dimension
+            result += (
+                a_storage[a_pos + k * a_strides[2]]
+                * b_storage[b_pos + k * b_strides[1]]
+            )
+
+        # Store the result
+        out_pos = batch * out_strides[0] + row * out_strides[1] + col * out_strides[2]
+        out[out_pos] = result
     # Parallel loop through batches and matrix dimensions
-    for batch in prange(out_shape[0]):  # Batch dimension
-        for row in prange(out_shape[1]):  # Output matrix rows
-            for col in prange(out_shape[2]):  # Output matrix columns
-                # Calculate starting positions in A and B
-                a_pos = (
-                    batch * a_batch_stride + row * a_strides[1]
-                )  # Position in matrix A
-                b_pos = (
-                    batch * b_batch_stride + col * b_strides[2]
-                )  # Position in matrix B
+    # for batch in prange(out_shape[0]):  # Batch dimension
+    #     for row in prange(out_shape[1]):  # Output matrix rows
+    #         for col in prange(out_shape[2]):  # Output matrix columns
+    #             # Calculate starting positions in A and B
+    #             a_pos = (
+    #                 batch * a_batch_stride + row * a_strides[1]
+    #             )  # Position in matrix A
+    #             b_pos = (
+    #                 batch * b_batch_stride + col * b_strides[2]
+    #             )  # Position in matrix B
 
-                # Do matrix multiplication for this position
-                result = 0.0
-                for k in range(a_shape[2]):  # Inner product dimension
-                    # A[batch, row, k] * B[batch, k, col]
-                    result += a_storage[a_pos] * b_storage[b_pos]
-                    # Move to next element in row/column
-                    a_pos += a_strides[2]  # Move along row in A
-                    b_pos += b_strides[1]  # Move down column in B
+    #             # Do matrix multiplication for this position
+    #             result = 0.0
+    #             for k in range(a_shape[2]):  # Inner product dimension
+    #                 # A[batch, row, k] * B[batch, k, col]
+    #                 result += a_storage[a_pos] * b_storage[b_pos]
+    #                 # Move to next element in row/column
+    #                 a_pos += a_strides[2]  # Move along row in A
+    #                 b_pos += b_strides[1]  # Move down column in B
 
-                # Store result in output
-                out_pos = (
-                    batch * out_strides[0] + row * out_strides[1] + col * out_strides[2]
-                )
-                out[out_pos] = result
+    #             # Store result in output
+    #             out_pos = (
+    #                 batch * out_strides[0] + row * out_strides[1] + col * out_strides[2]
+    #             )
+    #             out[out_pos] = result
 
     # A:
     # [

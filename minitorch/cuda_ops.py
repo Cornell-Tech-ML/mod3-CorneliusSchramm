@@ -158,8 +158,6 @@ class CudaOps(TensorOps):
 
 
 # Implement
-
-
 def tensor_map(
     fn: Callable[[float], float],
 ) -> Callable[[Storage, Shape, Strides, Storage, Shape, Strides], None]:
@@ -529,7 +527,7 @@ def _tensor_matrix_multiply(
     pi = cuda.threadIdx.x
     pj = cuda.threadIdx.y
 
-    acc = 0
+    acc = 0.0
     # 1) Move across shared dimension by block dim.
     for phase in range(0, a_shape[-1], BLOCK_DIM):
         # a) Copy into shared memory for a matrix.
@@ -541,7 +539,7 @@ def _tensor_matrix_multiply(
                 batch * a_batch_stride + i * a_strides[1] + (phase + pj) * a_strides[2]
             ]
         else:
-            a_shared[pi, pj] = 0
+            a_shared[pi, pj] = 0.0
 
         # b) Copy into shared memory for b matrix
         # # for B:
@@ -552,7 +550,7 @@ def _tensor_matrix_multiply(
                 batch * b_batch_stride + (phase + pi) * b_strides[1] + j * b_strides[2]
             ]
         else:
-            b_shared[pi, pj] = 0
+            b_shared[pi, pj] = 0.0
         cuda.syncthreads()
 
         # c) Compute the dot produce for position c[i, j]

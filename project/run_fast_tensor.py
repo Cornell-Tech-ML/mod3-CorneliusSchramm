@@ -12,7 +12,7 @@ if numba.cuda.is_available():
 
 
 def default_log_fn(epoch, total_loss, correct, losses, time):
-    print("Epoch ", epoch, " loss ", total_loss, "correct", correct, "time", time)
+    print("Epoch ", epoch, " loss ", total_loss, "correct", correct, "total time", round(time, 4), "time per epoch", round(time / (epoch + 1), 4))
 
 
 def RParam(*shape, backend):
@@ -93,6 +93,8 @@ class FastTrain:
                 optim.step()
 
             losses.append(total_loss)
+            time_seconds = time.time() - start_time
+            total_time += time_seconds
             # Logging
             if epoch % 10 == 0 or epoch == max_epochs:
                 X = minitorch.tensor(data.X, backend=self.backend)
@@ -100,10 +102,9 @@ class FastTrain:
                 out = self.model.forward(X).view(y.shape[0])
                 y2 = minitorch.tensor(data.y)
                 correct = int(((out.detach() > 0.5) == y2).sum()[0])
-                time_seconds = time.time() - start_time
-                total_time += time_seconds
-                log_fn(epoch, total_loss, correct, losses, time_seconds)
-        print("Total time: ", total_time, "Time per epoch: ", total_time / max_epochs)
+
+                log_fn(epoch, total_loss, correct, losses, total_time)
+        print("Total time: ", round(total_time,4), "Time per epoch: ", round(total_time / max_epochs , 4))
 
 
 if __name__ == "__main__":

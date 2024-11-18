@@ -510,56 +510,74 @@ def _tensor_matrix_multiply(
     Returns:
         None : Fills in `out`
     """
+    # Calculate batch strides, accounting for broadcasting (stride=0 if dim size=1)
     a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
-    # Batch dimension - fixed
+
+    # Get current batch index from block z-coordinate
     batch = cuda.blockIdx.z
 
+    # Define tile size for shared memory blocking
     BLOCK_DIM = 32
+    # Allocate shared memory for tile of matrix A and B
     a_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
     b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
 
-    # The final position c[i, j]
-    i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
-    j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
+    # Calculate global thread indices (position in output matrix)
+    # i = row index, j = column index
+    i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x  # Global row index
+    j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y  # Global column index
 
-    # The local position in the block.
-    pi = cuda.threadIdx.x
-    pj = cuda.threadIdx.y
+    # Local thread indices within the block (position in shared memory)
+    pi = cuda.threadIdx.x  # Local row index
+    pj = cuda.threadIdx.y  # Local column index
 
+    # Initialize accumulator for dot product
     acc = 0.0
-    # 1) Move across shared dimension by block dim.
+
+    # Iterate over tiles of size BLOCK_DIM in the K dimension
     for phase in range(0, a_shape[-1], BLOCK_DIM):
-        # a) Copy into shared memory for a matrix.
-        # # for A:
-        # #   row_index is gloabl out_y,
-        # #   col_index is tile_number * BLOCK_DIM + thread_xx
+        # Load tile from matrix A into shared memory
+        # Each thread loads one element
         if phase + pj < a_shape[-1] and i < a_shape[-2]:
+            # Calculate global memory position using strides
             a_shared[pi, pj] = a_storage[
-                batch * a_batch_stride + i * a_strides[1] + (phase + pj) * a_strides[2]
+                batch * a_batch_stride  # Batch offset
+                + i * a_strides[1]  # Row offset
+                + (phase + pj) * a_strides[2]  # Column offset
             ]
         else:
+            # Pad with zeros if outside matrix bounds
             a_shared[pi, pj] = 0.0
 
-        # b) Copy into shared memory for b matrix
-        # # for B:
-        # #   row_index is tile number * BLOCK_DIM + thread_y
-        # #   col_index is global out_
+        # Load tile from matrix B into shared memory
         if phase + pi < b_shape[-2] and j < b_shape[-1]:
+            # Calculate global memory position using strides
             b_shared[pi, pj] = b_storage[
-                batch * b_batch_stride + (phase + pi) * b_strides[1] + j * b_strides[2]
+                batch * b_batch_stride  # Batch offset
+                + (phase + pi) * b_strides[1]  # Row offset
+                + j * b_strides[2]  # Column offset
             ]
         else:
+            # Pad with zeros if outside matrix bounds
             b_shared[pi, pj] = 0.0
+
+        # Ensure all threads have loaded their data before computation
         cuda.syncthreads()
 
-        # c) Compute the dot produce for position c[i, j]
+        # Compute partial dot product using the current tile
         if i < out_shape[1] and j < out_shape[2]:
+            # Multiply and accumulate along K dimension
             for k in range(BLOCK_DIM):
                 acc += a_shared[pi, k] * b_shared[k, pj]
+
+        # Ensure all threads complete computation before loading next tile
         cuda.syncthreads()
 
+    # Calculate output position using strides
     o = batch * out_strides[0] + i * out_strides[1] + j * out_strides[2]
+
+    # Write result to global memory if within bounds
     if o < out_size and i < out_shape[1] and j < out_shape[2]:
         out[o] = acc
 

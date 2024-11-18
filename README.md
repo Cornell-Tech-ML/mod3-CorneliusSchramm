@@ -34,7 +34,21 @@ The files that will be synced are:
 # Outputs
 Here is the [link](https://colab.research.google.com/drive/1QEv2GPQXviGo7IMSUUNQh3Kfh5gcezUY?usp=sharing) to the execusted colab notebook with all tests passing and all training runs.
 
-## Parallelization Diagnostics Output:
+## Parallelization
+### 3.4 Cuda Matrix Multiply vs Naive approach Performance
+- **Small Matrices**:
+  - Naive CPU implementation is faster due to lower overhead.
+  - CUDA is slower for small sizes (e.g., $4 \times 4$, $8 \times 8$) due to GPU initialization and data transfer costs.
+
+- **Medium Matrices**:
+  - CUDA starts to outperform the naive CPU approach at $16 \times 16$ and $32 \times 32$ as parallelism outweighs overhead.
+
+- **Large Matrices**:
+  - CUDA is significantly faster for large sizes (e.g., $256 \times 256$):
+    - CUDA: ~0.86 seconds
+    - CPU: ~242.58 seconds (~**282x speedup**).
+![Cuda Matrix Multiply](cuda_matrix_multiply.png)
+### 3.2 Diagnostics Output:
 
 ```
 (.venv) ➜  mod3-CorneliusSchramm git:(master) python project/parallel_check.py
